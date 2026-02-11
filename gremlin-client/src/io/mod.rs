@@ -2,6 +2,7 @@
 mod macros;
 mod serializer_v2;
 mod serializer_v3;
+mod serializer_cosmos;
 
 use crate::conversion::ToGValue;
 use crate::process::traversal::{Order, Scope};
@@ -15,6 +16,7 @@ use crate::{GremlinError, GremlinResult};
 pub enum GraphSON {
     V2,
     V3,
+    COSMOS,
 }
 
 impl GraphSON {
@@ -25,6 +27,7 @@ impl GraphSON {
         match self {
             GraphSON::V2 => serializer_v2::deserializer_v2(value).map(Some),
             GraphSON::V3 => serializer_v3::deserializer_v3(value).map(Some),
+            GraphSON::COSMOS => serializer_cosmos::deserializer_cosmos(value).map(Some),
         }
     }
 
@@ -55,7 +58,7 @@ impl GraphSON {
                 "@type" : "g:Date",
                 "@value" : d.timestamp_millis()
             })),
-            (GraphSON::V2, GValue::List(d)) => {
+            (GraphSON::V2 | GraphSON::COSMOS, GValue::List(d)) => {
                 let elements: GremlinResult<Vec<Value>> = d.iter().map(|e| self.write(e)).collect();
                 Ok(json!(elements?))
             }
@@ -120,7 +123,7 @@ impl GraphSON {
                     }
                 }))
             }
-            (GraphSON::V2, GValue::Map(map)) => {
+            (GraphSON::V2 | GraphSON::COSMOS, GValue::Map(map)) => {
                 let mut params = Map::new();
 
                 for (k, v) in map.iter() {
@@ -256,6 +259,7 @@ impl GraphSON {
         match self {
             GraphSON::V2 => "application/vnd.gremlin-v2.0+json",
             GraphSON::V3 => "application/vnd.gremlin-v3.0+json",
+            GraphSON::COSMOS => "application/vnd.gremlin-v2.0+json",
         }
     }
 }

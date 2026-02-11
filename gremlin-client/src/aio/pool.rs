@@ -45,6 +45,7 @@ impl Manager for GremlinConnectionManager {
         let message = match self.options.serializer {
             GraphSON::V2 => message_with_args_v2(String::from("eval"), String::default(), args),
             GraphSON::V3 => message_with_args(String::from("eval"), String::default(), args),
+            GraphSON::COSMOS => message_with_args_v2(String::from("eval"), String::default(), args)
         };
 
         let id = message.id().clone();

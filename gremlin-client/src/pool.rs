@@ -45,6 +45,7 @@ impl ManageConnection for GremlinConnectionManager {
         let message = match self.options.serializer {
             GraphSON::V2 => message_with_args_v2(String::from("eval"), String::default(), args),
             GraphSON::V3 => message_with_args(String::from("eval"), String::default(), args),
+            GraphSON::COSMOS => message_with_args_v2(String::from("eval"), String::default(), args)
         };
 
         let msg = serde_json::to_string(&message).map_err(GremlinError::from)?;
@@ -52,6 +53,7 @@ impl ManageConnection for GremlinConnectionManager {
         let content_type = match self.options.serializer {
             GraphSON::V2 => "application/vnd.gremlin-v2.0+json",
             GraphSON::V3 => "application/vnd.gremlin-v3.0+json",
+            GraphSON::COSMOS => "application/vnd.gremlin-v2.0+json",
         };
         let payload = String::from("") + content_type + &msg;
 

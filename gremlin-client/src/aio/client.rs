@@ -28,6 +28,7 @@ impl SessionedClient {
             let message = match self.options.serializer {
                 GraphSON::V2 => message_with_args_v2(String::from("close"), processor, args),
                 GraphSON::V3 => message_with_args(String::from("close"), processor, args),
+                GraphSON::COSMOS => message_with_args_v2(String::from("close"), processor, args)
             };
 
             let conn = self.pool.get().await?;
@@ -142,6 +143,7 @@ impl GremlinClient {
         let message = match self.options.serializer {
             GraphSON::V2 => message_with_args_v2(String::from("eval"), processor, args),
             GraphSON::V3 => message_with_args(String::from("eval"), processor, args),
+            GraphSON::COSMOS => message_with_args_v2(String::from("eval"), processor, args)
         };
 
         let conn = self.pool.get().await?;

@@ -25,6 +25,7 @@ pub mod io {
         let port = match serializer {
             GraphSON::V2 => 8182,
             GraphSON::V3 => 8182,
+            GraphSON::COSMOS => 8182
         };
         GremlinClient::connect(
             ConnectionOptions::builder()
@@ -130,6 +131,7 @@ pub mod aio {
         let port = match serializer {
             GraphSON::V2 => 8182,
             GraphSON::V3 => 8182,
+            GraphSON::COSMOS => 8182
         };
         GremlinClient::connect(
             ConnectionOptions::builder()
