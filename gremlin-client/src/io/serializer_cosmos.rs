@@ -7,6 +7,7 @@ use std::collections::HashMap;
 enum CosmosResponseType {
     Path,
     Object,
+    Primitive,
 }
 
 pub fn deserializer_cosmos(value: &Value) -> GremlinResult<GValue> {
@@ -21,6 +22,7 @@ pub fn deserializer_cosmos(value: &Value) -> GremlinResult<GValue> {
         return match response_type {
             CosmosResponseType::Path => deserialize_path_type(arr),
             CosmosResponseType::Object => deserialize_object_type(arr),
+            CosmosResponseType::Primitive => deserialize_primitive_type(arr),
         };
     }
 
@@ -33,6 +35,11 @@ pub fn deserializer_cosmos(value: &Value) -> GremlinResult<GValue> {
 fn detect_cosmos_response_type(arr: &[Value]) -> GremlinResult<CosmosResponseType> {
     let first_item = arr.first()
         .ok_or_else(|| GremlinError::Generic("Empty array".to_string()))?;
+
+    // Check if it's a string (primitive type)
+    if first_item.is_string() {
+        return Ok(CosmosResponseType::Primitive);
+    }
 
     let first_obj = first_item.as_object()
         .ok_or_else(|| GremlinError::Generic("Expected object in array".to_string()))?;
@@ -55,6 +62,14 @@ fn detect_cosmos_response_type(arr: &[Value]) -> GremlinResult<CosmosResponseTyp
         "Unable to determine Cosmos response type. First element: {}",
         serde_json::to_string_pretty(first_item).unwrap_or_else(|_| format!("{:?}", first_item))
     )))
+}
+
+fn deserialize_primitive_type(arr: &[Value]) -> GremlinResult<GValue> {
+    let results: Vec<GValue> = arr.iter()
+        .map(json_to_gvalue)
+        .collect();
+
+    Ok(GValue::List(List::new(results)))
 }
 
 fn deserialize_path_type(arr: &[Value]) -> GremlinResult<GValue> {
