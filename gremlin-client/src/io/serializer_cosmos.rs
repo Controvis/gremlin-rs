@@ -8,6 +8,7 @@ enum CosmosResponseType {
     Path,
     Object,
     Primitive,
+    Map,
 }
 
 pub fn deserializer_cosmos(value: &Value) -> GremlinResult<GValue> {
@@ -23,6 +24,7 @@ pub fn deserializer_cosmos(value: &Value) -> GremlinResult<GValue> {
             CosmosResponseType::Path => deserialize_path_type(arr),
             CosmosResponseType::Object => deserialize_object_type(arr),
             CosmosResponseType::Primitive => deserialize_primitive_type(arr),
+            CosmosResponseType::Map => deserialize_map_type(arr),
         };
     }
 
@@ -58,6 +60,20 @@ fn detect_cosmos_response_type(arr: &[Value]) -> GremlinResult<CosmosResponseTyp
         }
     }
 
+    // Check if it's a map type (object with nested vertex/edge objects)
+    // The first element's values should be objects with "type" field
+    for (_, value) in first_obj {
+        if let Some(nested_obj) = value.as_object() {
+            if nested_obj.contains_key("type") {
+                if let Some(type_str) = nested_obj.get("type").and_then(|v| v.as_str()) {
+                    if type_str == "vertex" || type_str == "edge" {
+                        return Ok(CosmosResponseType::Map);
+                    }
+                }
+            }
+        }
+    }
+
     Err(GremlinError::Generic(format!(
         "Unable to determine Cosmos response type. First element: {}",
         serde_json::to_string_pretty(first_item).unwrap_or_else(|_| format!("{:?}", first_item))
@@ -68,6 +84,46 @@ fn deserialize_primitive_type(arr: &[Value]) -> GremlinResult<GValue> {
     let results: Vec<GValue> = arr.iter()
         .map(json_to_gvalue)
         .collect();
+
+    Ok(GValue::List(List::new(results)))
+}
+
+fn deserialize_map_type(arr: &[Value]) -> GremlinResult<GValue> {
+    let mut results = Vec::new();
+
+    for item in arr {
+        let obj = item.as_object()
+            .ok_or_else(|| GremlinError::Generic("Expected object in map array".to_string()))?;
+
+        let mut map = HashMap::new();
+
+        for (key, value) in obj {
+            // Each value might be a vertex, edge, or other value
+            if let Some(nested_obj) = value.as_object() {
+                if let Some(type_str) = nested_obj.get("type").and_then(|v| v.as_str()) {
+                    match type_str {
+                        "vertex" => {
+                            let vertex = deserialize_vertex_with_properties(nested_obj)?;
+                            map.insert(key.clone(), GValue::Vertex(vertex));
+                        }
+                        "edge" => {
+                            let edge = deserialize_edge_standalone(nested_obj)?;
+                            map.insert(key.clone(), GValue::Edge(edge));
+                        }
+                        _ => {
+                            map.insert(key.clone(), json_to_gvalue(value));
+                        }
+                    }
+                } else {
+                    map.insert(key.clone(), json_to_gvalue(value));
+                }
+            } else {
+                map.insert(key.clone(), json_to_gvalue(value));
+            }
+        }
+
+        results.push(GValue::Map(Map::from(map)));
+    }
 
     Ok(GValue::List(List::new(results)))
 }
